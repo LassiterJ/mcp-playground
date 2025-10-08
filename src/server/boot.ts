@@ -45,7 +45,15 @@ export async function boot(
     origin: corsOrigin,
     credentials: true,
     methods: ["GET", "POST", "OPTIONS", "DELETE"],
-    allowedHeaders: ["Content-Type", "x-mcp-session", "x-mcp-session-id"],
+    // Allow headers used by Inspector and MCP transports during preflight
+    allowedHeaders: [
+      "Content-Type",
+      "x-mcp-session",
+      "x-mcp-session-id",
+      "x-mcp-proxy-auth",
+      "mcp-protocol-version",
+      "authorization"
+    ],
     exposedHeaders: ["x-mcp-session-id"]
   }));
 
@@ -55,6 +63,14 @@ export async function boot(
   });
 
   await server.connect(transport);
+
+  // Lightweight health + config endpoints for tools like Inspector
+  app.get("/mcp/health", (_req, res) => {
+    res.json({ status: "ok" });
+  });
+  app.get("/mcp/config", (_req, res) => {
+    res.json({ transport: "streamable-http" });
+  });
 
   // Handle all MCP requests (GET for SSE, POST for JSON-RPC, DELETE for cleanup)
   app.all("/mcp", (req, res) => {
